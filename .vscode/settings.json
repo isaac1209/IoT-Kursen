@@ -46,6 +46,10 @@
         "stdexcept": "cpp",
         "streambuf": "cpp",
         "cinttypes": "cpp",
-        "typeinfo": "cpp"
-    }
+        "typeinfo": "cpp",
+        "csignal": "cpp",
+        "bitset": "cpp",
+        "sstream": "cpp"
+    },
+    "cmake.sourceDirectory": "C:/Users/amthe/OneDrive/Desktop/Files/MINA KURSER/IoT kursen/testLabb/levelward-labb1_dt094a-22920edf105b"
 }
