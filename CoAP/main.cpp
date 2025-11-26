@@ -18,38 +18,43 @@ int main() {
 
     while (true)
     {
+    
+    std::cout << "Enter Method (GET, POST, PUT, DELETE): ";
+    std::getline(std::cin, method);
+    Method coapMethod = parseMethod(method);
+
+    if (method == "clear") {
+        system("clear");   // or "cls" on Windows
+        continue;          // restart loop immediately
+    }
+    
+    if(method == "post" || method == "put")
+    {
+
+        std::cout << "Enter Payload (e.g., 'Hello CoAP'): ";
+        std::getline(std::cin, input_payload);
+
+        for (char c : input_payload) {
+            payload.push_back(static_cast<uint8_t>(c));
+        }
+       
+        if (input_payload == "clear") {
+            system("clear");   // or "cls" on Windows
+            continue;          // restart loop immediately
+        }
+
+    }
 
     // Get user input for URI path and payload
     std::cout << "\nEnter URI path (e.g., 'test'): ";
-    std::cin >> input_path;
+    std::getline(std::cin, input_path);
+    uriPath.push_back(input_path);
     if (input_path == "clear") {
         system("clear");   // or "cls" on Windows
         continue;          // restart loop immediately
     }
 
-    std::cout << "Enter Payload (e.g., 'Hello CoAP'): ";
-    std::cin >> input_payload;
-    if (input_payload == "clear") {
-        system("clear");   // or "cls" on Windows
-        continue;          // restart loop immediately
-    }
 
-    std::cout << "Enter Method (GET, POST, PUT, DELETE): ";
-    std::cin >> method;
-    if (method == "clear") {
-        system("clear");   // or "cls" on Windows
-        continue;          // restart loop immediately
-    }
-
- 
-
-    // Parse method
-    Method coapMethod = parseMethod(method);
-    uriPath.push_back(input_path);
-
-    for (char c : input_payload) {
-        payload.push_back(static_cast<uint8_t>(c));
-    }
    
 
     CoapMessage message(MessageType::NON, coapMethod, uriPath, payload);
@@ -57,8 +62,8 @@ int main() {
     client.receiveMessage();
     uriPath.clear();
     payload.clear();
- 
-
+    input_path.clear();
+    input_payload.clear();
     }
     
   

@@ -87,7 +87,10 @@ void CoapClient::sendMessage(CoapMessage* message) {
 
     // Now we get the serialized message from CoapMessage
     std::vector<uint8_t> msgBuffer = message->getMessage();
+
     ssize_t bytesSent = send(client_fd, msgBuffer.data(), msgBuffer.size(), 0);
+    message->clearMessage(); // Clear message after sending
+
     if (bytesSent < 0) {
         std::cerr << "Failed to send message!" << std::endl;
         return;
@@ -96,10 +99,12 @@ void CoapClient::sendMessage(CoapMessage* message) {
 
 void CoapClient::receiveMessage() {
 
+    
     // CoAP messages are typically small (max payload is around 1024 bytes)
     const size_t MAX_COAP_SIZE = 1280; 
     uint8_t buffer[MAX_COAP_SIZE];
-
+    
+    memset(buffer, 0, MAX_COAP_SIZE);
     ssize_t bytes_received = recv(client_fd, buffer, MAX_COAP_SIZE, 0);
 
     if (bytes_received < 0) {
@@ -112,12 +117,9 @@ void CoapClient::receiveMessage() {
     // **NOTE:** You must implement the CoapMessage::deserialize() method.
     CoapMessage response;
     bool success = response.deserialize(buffer, bytes_received);
-
-    if (success) {
-        // Print the received message in binary format
-       // response.printMessage();
-    } else {
-        std::cerr << "Error: Failed to deserialize received CoAP message." << std::endl;
+   
+    if (!success) {
+     std::cerr << "Error: Failed to deserialize received CoAP message." << std::endl;
     }
 
 }

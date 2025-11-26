@@ -12,6 +12,7 @@ private:
     std::vector<uint8_t> messages;
 public:
     CoapMessage();
+    void clearMessage();
     CoapMessage( MessageType TPY, Method method, const std::vector<std::string>& uriPath, const std::vector<uint8_t>& payload = {});
     int findPayloadMarker(const std::vector<uint8_t>& packet);
     std::string bytesToString(const std::vector<uint8_t>& bytes);
@@ -26,6 +27,9 @@ CoapMessage::CoapMessage(){}
 
 CoapMessage::CoapMessage( MessageType TPY, Method method, const std::vector<std::string>& uriPath, const std::vector<uint8_t>& payload)
 {
+
+
+    // ---- Construct Header ----
     uint8_t header = static_cast<uint8_t>(Version::V1) | static_cast<uint8_t>(TPY) | static_cast<uint8_t>(TokenLength::ZERO);
     this->messages.push_back(static_cast<char>(header));
     this->messages.push_back(static_cast<uint8_t>(method));
@@ -86,7 +90,9 @@ bool CoapMessage::deserialize(const uint8_t* data, size_t length) {
     // Print payload in binary
     std::cout << "Payload:\n";
     std::cout << bytesToString(payload) << std::endl;
-    
+
+    payload.clear(); // Clear payload after processing
+    messages.clear(); // Clear messages after processing
     return true;
 }
 
@@ -103,8 +109,10 @@ int CoapMessage::findPayloadMarker(const std::vector<uint8_t>& packet)
 
 void CoapMessage::addOption(OptionNumber number, const std::vector<uint8_t>& value)
 {
-    static uint8_t lastOptionNumber = 0; // remembers previous option number
-
+    // reset last option number for simplicity in this example
+    uint8_t lastOptionNumber = 0;
+   
+    // Calculate delta and length
     uint8_t optNum = static_cast<uint8_t>(number);
     uint8_t delta  = optNum - lastOptionNumber;
     lastOptionNumber = optNum;
@@ -118,11 +126,17 @@ void CoapMessage::addOption(OptionNumber number, const std::vector<uint8_t>& val
 
     for (uint8_t byte : value)
         messages.push_back(byte);
+        
 }
 
 std::string CoapMessage::bytesToString(const std::vector<uint8_t>& bytes)
 {
     return std::string(bytes.begin(), bytes.end());
+}
+
+void CoapMessage::clearMessage()
+{
+    messages.clear();
 }
 
 CoapMessage::~CoapMessage()
