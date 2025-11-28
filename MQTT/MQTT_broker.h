@@ -19,8 +19,9 @@ class MQTTBroker {
 private:
     int broker_fd;
     const int port = 1883;
-    std::map<std::string, std::vector<int>> topic_subscribers; // topic to list of client fds
-    std::mutex mtx; // Mutex for thread safety
+    std::map<std::string, std::vector<int>> topic_subscribers;
+    std::map<std::string, std::string> retained_messages;
+    std::mutex mtx; 
 public:
      MQTTBroker();
     ~MQTTBroker();
@@ -35,6 +36,7 @@ public:
     void mqttPing(int client_fd);
     void disconnectClient(int client_fd);
     void publishMessage(const std::string& topic, const std::string& payload);
+    void sendRetainedMessages(int client_fd, const std::string& topic);
 
 };
 

@@ -49,7 +49,14 @@
         "typeinfo": "cpp",
         "csignal": "cpp",
         "bitset": "cpp",
-        "sstream": "cpp"
+        "sstream": "cpp",
+        "chrono": "cpp",
+        "condition_variable": "cpp",
+        "ratio": "cpp",
+        "mutex": "cpp",
+        "semaphore": "cpp",
+        "stop_token": "cpp",
+        "thread": "cpp"
     },
     "cmake.sourceDirectory": "C:/Users/amthe/OneDrive/Desktop/Files/MINA KURSER/IoT kursen/testLabb/levelward-labb1_dt094a-22920edf105b"
 }

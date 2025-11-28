@@ -25,7 +25,7 @@ void MQTTBroker::start() {
             perror("Accept failed");
             continue;
         }
-        // Handle each client in a separate thread
+        // We handle each client in a separate thread
         std::thread(&MQTTBroker::handleClient, this, client_fd).detach();
     }
 }
@@ -150,7 +150,6 @@ void MQTTBroker::parseSubscribe(const uint8_t* buffer, int length, int client_fd
     uint16_t packetId = (buffer[index] << 8) | buffer[index + 1];
     index += 2;
 
-    // Properties Length
     uint8_t propertiesLength = buffer[index++];
     index += propertiesLength;
 
@@ -158,11 +157,9 @@ void MQTTBroker::parseSubscribe(const uint8_t* buffer, int length, int client_fd
     uint16_t topicLength = (buffer[index] << 8) | buffer[index + 1];
     index += 2;
 
-    // Topic Name
     std::string topic(reinterpret_cast<const char*>(&buffer[index]), topicLength);
     index += topicLength;
 
-    // QoS byte (we will ignore)
     uint8_t qos = buffer[index++];
 
     std::cout << "[SUBSCRIBE] Client " << client_fd 
@@ -185,9 +182,37 @@ void MQTTBroker::parseSubscribe(const uint8_t* buffer, int length, int client_fd
         0x00  // reason code = granted QoS 0
     };
 
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        // Send retained messages if any
+        sendRetainedMessages(client_fd, topic);
+    }
+
     write(client_fd, suback, sizeof(suback));
 
     std::cout << "[SUBACK] Sent to client fd " << client_fd << "\n";
+}
+
+void MQTTBroker::sendRetainedMessages(int client_fd, const std::string& topic) {
+    if (retained_messages.count(topic) == 0) {
+        return; // No retained message for this topic
+    }
+
+    const std::string& payload = retained_messages[topic];
+
+    std::vector<uint8_t> packet;
+    
+    packet.push_back(static_cast<uint8_t>(MessageType::PUBLISH) | 0x01); // Retain flag set
+    uint8_t remainingLength = 2 + topic.size() + 1 + payload.size();
+    packet.push_back(remainingLength);
+    packet.push_back((topic.size() >> 8) & 0xFF);
+    packet.push_back(topic.size() & 0xFF);
+    packet.insert(packet.end(), topic.begin(), topic.end());
+    packet.push_back(0x00);
+    packet.insert(packet.end(), payload.begin(), payload.end());
+    write(client_fd, packet.data(), packet.size());
+
+    std::cout << "[BROKER] Sent retained PUBLISH to fd " << client_fd << "\n";
 }
 
 void MQTTBroker::parsePublish(const uint8_t* buffer, int length, int client_fd) {
@@ -195,22 +220,17 @@ void MQTTBroker::parsePublish(const uint8_t* buffer, int length, int client_fd) 
 
     // --- FIXED HEADER ---
     uint8_t header = buffer[index++];
+    bool retain = header & 0x01;
     uint8_t remainingLength = buffer[index++];
-
-    // QoS level
     uint8_t qos = (header & 0x06) >> 1;
 
-    // --- VARIABLE HEADER ---
-
-    // Topic length (2 bytes)
+    // --- VARIABLE HEADER ---)
     uint16_t topicLength = (buffer[index] << 8) | buffer[index + 1];
     index += 2;
 
-    // Topic name
     std::string topic(reinterpret_cast<const char*>(&buffer[index]), topicLength);
     index += topicLength;
 
-    // Properties Length
     uint8_t propsLen = buffer[index++];
     index += propsLen; // skip properties
 
@@ -218,6 +238,11 @@ void MQTTBroker::parsePublish(const uint8_t* buffer, int length, int client_fd) 
     int payloadLen = length - index;
     // start at current index to the end of the buffer by payloadLen
     std::string payload(reinterpret_cast<const char*>(&buffer[index]), payloadLen);
+
+    if(retain) {
+        std::lock_guard<std::mutex> lock(mtx);
+        retained_messages[topic] = payload;
+    }
 
     std::cout << "[PUBLISH] Topic: " << topic 
               << " | Payload: " << payload
@@ -250,7 +275,6 @@ void MQTTBroker::parseUnsubscribe(const uint8_t* buffer, int length, int client_
     std::string topic(reinterpret_cast<const char*>(&buffer[index]), topicLength);
     index += topicLength;
 
-    // Remove from map
     {
         std::lock_guard<std::mutex> lock(mtx);
         auto& subs = topic_subscribers[topic];
@@ -289,11 +313,10 @@ void MQTTBroker::publishMessage(const std::string& topic, const std::string& pay
         std::vector<uint8_t> packet;
 
         // Fixed Header
-        packet.push_back(static_cast<uint8_t>(MessageType::PUBLISH)); // 0x30
+        packet.push_back(static_cast<uint8_t>(MessageType::PUBLISH)); 
 
-        // Remaining Length = topic length (2) + topic + properties len (1) + payload size
-        uint8_t remainingLength =
-            2 + topic.size() + 1 + payload.size();
+        // Remaining Length 
+        uint8_t remainingLength = 2 + topic.size() + 1 + payload.size();
         packet.push_back(remainingLength);
 
         // Topic length
@@ -303,7 +326,7 @@ void MQTTBroker::publishMessage(const std::string& topic, const std::string& pay
         // Topic name
         packet.insert(packet.end(), topic.begin(), topic.end());
 
-        // Properties length (0)
+        // Properties length
         packet.push_back(0x00);
 
         // Payload
@@ -321,10 +344,10 @@ void MQTTBroker::publishMessage(const std::string& topic, const std::string& pay
 void MQTTBroker::connectClient(int client_fd) {
     uint8_t connack[5] = {
         static_cast<uint8_t>(MessageType::CONNACK), // 0x20
-        0x03, // remaining length = 3 bytes follow
-        0x00, // session present = 0
-        0x00, // reason code = success
-        0x00  // properties length = 0
+        0x03, // remaining length
+        0x00, // session present
+        0x00, // reason code 
+        0x00  // properties length
     };
 
     write(client_fd, connack, sizeof(connack));
